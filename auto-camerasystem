@@ -1,0 +1,108 @@
+using UnityEditor;
+using UnityEngine;
+
+public class CameraSystem : EditorWindow
+{
+    private GameObject targetChar;
+    private string status = "Umut AZER Kamera Sistemi Hazır";
+
+    public enum CamMode { TPS, FPS }
+    private CamMode selectedMode = CamMode.TPS;
+    
+    private float dist = 4f;
+    private float height = 1.6f;
+    private float sensitivity = 2.5f;
+
+    // Senin yukarıdaki sekmene ekliyoruz
+    [MenuItem("Umut AZER/Gelişmiş Kamera Paneli")]
+    public static void ShowWindow() => GetWindow<CameraSystem>("UmutDEV Camera");
+
+    private void OnGUI()
+    {
+        // OTOMATİK ALGILAMA: Hierarchy'de neye tıklarsan ismi burada belirir
+        if (Selection.activeGameObject != null && Selection.activeGameObject != targetChar)
+        {
+            // Eğer seçilen obje bir kamera değilse onu hedef olarak kabul et
+            if (Selection.activeGameObject.GetComponent<Camera>() == null)
+                targetChar = Selection.activeGameObject;
+        }
+
+        GUILayout.Space(10);
+        GUIStyle headStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 15, alignment = TextAnchor.MiddleLeft };
+        headStyle.normal.textColor = Color.cyan;
+        GUILayout.Label("🎥 UMUTDEV CAMERA ENGINE", headStyle);
+        
+        GUILayout.BeginVertical("helpbox");
+        string nameDisplay = targetChar != null ? targetChar.name : "Karakter Seçilmedi!";
+        EditorGUILayout.LabelField("Aktif Hedef:", nameDisplay, EditorStyles.boldLabel);
+        GUILayout.EndVertical();
+
+        GUILayout.Space(10);
+        
+        GUILayout.Label("⚙️ Kamera Ayarları", EditorStyles.boldLabel);
+        GUILayout.BeginVertical("box");
+        selectedMode = (CamMode)EditorGUILayout.EnumPopup("Kamera Modu:", selectedMode);
+        
+        if (selectedMode == CamMode.TPS)
+        {
+            dist = EditorGUILayout.Slider("Mesafe (TPS)", dist, 1f, 10f);
+        }
+        
+        height = EditorGUILayout.Slider("Yükseklik (Göz Hizası)", height, 0.5f, 3f);
+        sensitivity = EditorGUILayout.Slider("Hassasiyet", sensitivity, 0.1f, 10f);
+        
+        GUILayout.Space(15);
+        GUI.backgroundColor = Color.green;
+        if (GUILayout.Button("KAMERAYI YERLEŞTİR VE GÜNCELLE", GUILayout.Height(35)))
+        {
+            ApplyCameraSettings();
+        }
+        GUI.backgroundColor = Color.white;
+        GUILayout.EndVertical();
+
+        GUILayout.Space(15);
+        EditorGUILayout.HelpBox("Durum: " + status, MessageType.Info);
+        EditorGUILayout.HelpBox("FPS modunda kamera karakterin içine (Child) hapsedilir.", MessageType.None);
+    }
+
+    private void ApplyCameraSettings()
+    {
+        if (targetChar == null)
+        {
+            EditorUtility.DisplayDialog("UmutDEV", "Lütfen önce bir karakter seçin!", "Tamam");
+            return;
+        }
+
+        Camera cam = Camera.main;
+        if (cam == null)
+        {
+            GameObject camObj = new GameObject("Main Camera", typeof(Camera), typeof(AudioListener));
+            cam = camObj.GetComponent<Camera>();
+        }
+
+        // Kamera ismini hiyerarşide güncelle
+        cam.gameObject.name = "UmutDEV_" + selectedMode.ToString() + "_Camera";
+
+        // Kamerayı karakterin hiyerarşisine bağla (Child yap)
+        cam.transform.SetParent(targetChar.transform);
+
+        if (selectedMode == CamMode.FPS)
+        {
+            // FPS: Tam göz hizasına ışınla
+            cam.transform.localPosition = new Vector3(0, height, 0.2f);
+            cam.transform.localRotation = Quaternion.identity;
+        }
+        else
+        {
+            // TPS: Arkaya ve biraz yukarıya ışınla
+            cam.transform.localPosition = new Vector3(0, height + 0.5f, -dist);
+            cam.transform.localEulerAngles = new Vector3(10, 0, 0);
+        }
+
+        // Umut AZER
+        EditorPrefs.SetFloat("UmutDev_CamSens", sensitivity);
+        
+        status = selectedMode.ToString() + " Modu Başarıyla Uygulandı!";
+        Selection.activeGameObject = cam.gameObject;
+    }
+}
